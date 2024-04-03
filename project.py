@@ -39,12 +39,48 @@ import os, shutil
 import json
 
 
+# We are using the MNIST digit recognizer dataset. MNIST ("Modified National Institute of Standards and Technology") is the de facto “hello world”
+# dataset of computer vision. Since its release in 1999, this classic dataset of handwritten images has served as the basis for benchmarking
+# classification algorithms. Use pandas to read the CSV file with the data.
+try:
+    csv_data = pd.read_csv('train.csv')
+    data = np.array(csv_data)
+except FileNotFoundError:
+    print("File not found:", 'train.csv')
+except Exception as e:
+    print("Error loading data:", e)
+
+# Get the dimensions of the array. There are m rows (i.e. images). Each image has n (i.e. 785 values; one for the label and 784 for the pixels)
+m, n = data.shape
+
+# Shuffle the data before splitting into dev and training sets.
+np.random.shuffle(data)
+
+# Create the dev data (i.e. validation data) from the first 1,000 images.
+# Remember to transpose the matrix, so each column (rather than row) is an image.
+data_dev = data[0:1000].T
+# Now, Y_dev (i.e. the image label) will just be the first row.
+Y_dev = data_dev[0]
+# And X_dev will be the image pixels.
+X_dev = data_dev[1:n]
+# The pixel valueas (0-255) are transformed into decimal values (0-1).
+X_dev = X_dev / 255.
+
+# Create the training data from the remaining images. There are something like 41,000 of them.
+# Again, remember to transpose the matrix so each column is an image.
+data_train = data[1000:m].T
+Y_train = data_train[0]
+X_train = data_train[1:n]
+# The pixel valueas (0-255) are transformed into decimal values (0-1).
+X_train = X_train / 255.
+
+
 num_input_nodes = 784
 num_hidden_layers = 1
 num_hidden_nodes = 180
 num_output_nodes = 10
 # The accuracy does keep improving after 100 epochs, but the rate of improvement is quite slow.
-num_iterations = 100
+num_iterations = 10
 # Sigmoid provides a smoother accuracy line. Whereas, ReLU gives an accuracy line that goes back-and-forth fairly wildly.
 # But ReLU provides the greater overall accuracy.
 activation_fn = "ReLU"
@@ -57,6 +93,8 @@ training_accuracy = []
 validation_accuracy = []
 training_loss = []
 validation_loss = []
+
+directory_name = "Neural-Network-Parameters"
 
 
 def clear_directory(directory):
@@ -72,21 +110,6 @@ def clear_directory(directory):
                 shutil.rmtree(file_path)
     except Exception as e:
         print('Error clearing directory {}: {}'.format(directory, e))
-
-
-def load_data(file_path):
-    """
-    Load data from a CSV file.
-    """
-    try:
-        data = pd.read_csv(file_path)
-        return np.array(data)
-    except FileNotFoundError:
-        print("File not found:", file_path)
-        return None
-    except Exception as e:
-        print("Error loading data:", e)
-        return None
 
 
 def write_json_data(data, file_path):
@@ -108,10 +131,10 @@ def init_params():
     Note: it's best practice to initialize your weights/biases close to 0, otherwise your gradients get really small really quickly:
     https://stackoverflow.com/questions/47240308/differences-between-numpy-random-rand-vs-numpy-random-randn-in-python
     """
-    W1 = np.random.normal(0.0, pow(num_input_nodes, -0.5), (num_hidden_nodes, num_input_nodes)) 
-    b1 = np.random.normal(size=(num_hidden_nodes, 1)) * 0.05 
-    W2 = np.random.normal(0.0, pow(num_hidden_nodes, -0.5), (num_output_nodes, num_hidden_nodes))
-    b2 = np.random.normal(size=(num_output_nodes, 1)) * 0.05 
+    W1 = np.random.randn(num_hidden_nodes, num_input_nodes) * 0.01
+    b1 = np.zeros([num_hidden_nodes, 1])
+    W2 = np.random.randn(num_output_nodes, num_hidden_nodes) * 0.01
+    b2 = np.zeros([num_output_nodes, 1])
     return W1, b1, W2, b2
 
 
@@ -217,12 +240,12 @@ def backward_prop(Z1, A1, Z2, A2, W1, W2, X, Y):
     # The closer the prediction probability is to 1, the closer the loss is to 0. By minimizing the cost function, we improve 
     # the accuracy of our model. We do so by substracting the derivative of the loss function with respect to each parameter 
     # from that parameter over many rounds of graident descent.
-    dZ2 = 2 * (A2 - one_hot_Y)
+    dZ2 = A2 - one_hot_Y
     dW2 = 1 / m * dZ2.dot(A1.T)
-    db2 = 1 / m * np.sum(dZ2)
+    db2 = 1 / m * np.sum(dZ2, axis=1, keepdims=True)
     dZ1 = W2.T.dot(dZ2) * ReLU_deriv(Z1)
     dW1 = 1 / m * dZ1.dot(X.T)
-    db1 = 1 / m * np.sum(dZ1)
+    db1 = 1 / m * np.sum(dZ1, axis=1, keepdims=True)
     # Calculate the loss value
     loss_array = (A2 - one_hot_Y) ** 2
     _, num_items = loss_array.shape
@@ -267,7 +290,7 @@ def gradient_descent(X, Y, alpha, iterations):
     propagation, and updates the parameters. It does this iteration times, and it prints out an update every 10 
     iterations.
     """
-    try:        
+    try:
         W1, b1, W2, b2 = init_params()
         for i in range(iterations):        
             # Create the data structures for storing the details of the neural network working data.
@@ -394,6 +417,8 @@ def gradient_descent(X, Y, alpha, iterations):
             if i % 10 == 0:
                 print("Iteration: ", i)
                 print("Accuracy: ", get_accuracy(predictions, Y))
+        print("Iteration: ", i)
+        print("Accuracy: ", get_accuracy(predictions, Y))
         return W1, b1, W2, b2
     except Exception as e:
         print("Error in gradient descent:", e)
@@ -436,38 +461,9 @@ def main():
     # We will place our files in the "Neural-Network-Parameters" directory. If the directory does not exist, create it.
     # In case there are files in there, clear its contents. In the directory, we will have one JSON file for each 
     # iteration (epoch). We will also store images for the test and validation error rates.
-    directory_name = "Neural-Network-Parameters"
     if not os.path.isdir(directory_name):
         os.makedirs(directory_name)
     clear_directory(directory_name)    
-
-    # We are using the MNIST digit recognizer dataset. MNIST ("Modified National Institute of Standards and Technology") is the de facto “hello world”
-    # dataset of computer vision. Since its release in 1999, this classic dataset of handwritten images has served as the basis for benchmarking
-    # classification algorithms. Use pandas to read the CSV file with the data.
-    data = load_data('train.csv')
-    # Get the dimensions of the array. There are m rows (i.e. images). Each image has n (i.e. 785 values; one for the label and 784 for the pixels)
-    m, n = data.shape
-
-    # Shuffle the data before splitting into dev and training sets.
-    np.random.shuffle(data)
-
-    # Create the dev data (i.e. validation data) from the first 1,000 images.
-    # Remember to transpose the matrix, so each column (rather than row) is an image.
-    data_dev = data[0:1000].T
-    # Now, Y_dev (i.e. the image label) will just be the first row.
-    Y_dev = data_dev[0]
-    # And X_dev will be the image pixels.
-    X_dev = data_dev[1:n]
-    # The pixel valueas (0-255) are transformed into decimal values (0-1).
-    X_dev = X_dev / 255.
-
-    # Create the training data from the remaining images. There are something like 41,000 of them.
-    # Again, remember to transpose the matrix so each column is an image.
-    data_train = data[1000:m].T
-    Y_train = data_train[0]
-    X_train = data_train[1:n]
-    # The pixel valueas (0-255) are transformed into decimal values (0-1).
-    X_train = X_train / 255.
 
     # Run the neural network on the training set.
     W1, b1, W2, b2 = gradient_descent(X_train, Y_train, alpha_value, num_iterations)
