@@ -1,0 +1,186 @@
+/* Style for the HTML page */
+html {
+    background: #f5f5f5;
+    width: 100%;
+    height: 100%;
+}
+
+/* Style the navigation tabs */
+    .tab {
+    overflow: hidden;
+    background-color: #f1f1f1;
+}
+
+/* Style the navigation tab headings (which are implemented as buttons) */
+.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    margin-right: 10px;
+    transition: 0.3s;
+    font-size: 18;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px; 
+    background-color: #ccc;
+}
+
+/* Style when hovering over the navigation tab headings (which are implemented as buttons) */
+.tab button:hover {
+    font-weight: bold;
+}
+
+/* Style for the currently selected navigation tab heading (which is implemented as a button) */
+.tab button.active {
+    font-weight: bold;
+    background-color: #31A66C;
+    color: #eee;
+}
+
+/* Style for the tab contents */
+.tabcontent {
+    display: none;
+    padding: 12px 24px 12px 12px;
+    border-top: none;
+    background-color: #31A66C;
+    color: #222;
+    width: fit-content;
+    border-top-right-radius: 15px; 
+}
+
+/* Style for connections between nodes (Whole Neural Network) */
+.link {
+    stroke: #999;
+    stroke-opacity: .6;
+}
+
+/* Style for the buttons that navigate through the epochs */
+button {
+    border-radius: 3px;
+    color: #31A66C;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: bold;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Style for the top area in a tab, which displays the meta-data and/or the buttons for navigating through the epochs */
+.neural-nav {
+    background-color: #e1e1e1;
+    border-radius: 15px;
+    padding: 12px 12px 12px 24px;
+    margin-bottom: 10px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+/* Style for the DIV that contains both the "whole network" and "close up" SVGs */
+.neural-body {
+    display: inline-flex;
+}
+
+/* Style for the DIV containing the "whole network" */
+.neural-whole {
+    background: #e1e1e1;
+    border-radius: 15px;
+    padding: 12px 12px;
+    margin-right: 10px;
+    position: relative;
+    height: 100%;
+    overflow: scroll;
+} 
+
+/* Style for the DIV containing the "close up" */
+.neural-zoom {
+    flex-grow: 1; 
+    background: #BEE3D1;
+    padding: 12px 12px;
+    border-radius: 15px;
+    position: relative;
+    height: 100%;
+    overflow: scroll;
+}
+
+.other-body {
+    display: block;
+}
+
+.other-heading {
+    text-align: center;
+    font-weight: bold;
+    font-size: 17px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+.table-container {
+    background: #fff;
+    padding: 24px;
+    border-radius: 15px;
+}
+
+.table-container table {
+    width: 240px;
+    table-layout: fixed;  
+    border: 1px solid white;
+}
+
+.table-container th {
+    width: 75px;
+    overflow: hidden;
+    text-align: center;  
+    border: 1px solid white;
+    padding: 3px;
+    background-color: #AAA;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 12px;
+    color: white;
+}
+
+.table-container td {
+    width: 75px;
+    overflow: hidden;
+    text-align: center;  
+    border: 1px solid white;
+    padding: 3px;
+    background-color: #CCC;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+.col-body-header {
+    column-count:4;
+    -moz-column-count:4;
+    -webkit-column-count:4;    
+}
+
+.col-body {
+    padding-top: 16px;
+    column-count:4;
+    -moz-column-count:4;
+    -webkit-column-count:4;    
+}
+
+.graph-container {
+    background: #fff;
+    padding: 24px;
+    border-radius: 15px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.graph-container img {
+    margin: auto;
+}
+
+/* Style for the node circle */
+.node-circle {
+    stroke: black;
+    fill: white;
+}
+
+/* Style for the text in the node circle */
+.node-text {
+    font-size: 12px;
+    fill: black;
+    pointer-events: none; /* Ensures that text elements do not intercept mouse events */
+}

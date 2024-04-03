@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Neural Network Explorer</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='Instrumented-Neural-Network.css') }}">
+        <script src = "https://d3js.org/d3.v4.min.js"></script>
+        <script src = "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
+        <script type="text/javascript"> 
+            // JavaScript function to read the HTML code for the "bad predictions" and put it in the
+            // appropriate DIV.
+            $(function(){
+                $("#badPredictions").load("static/BadPredictions.html"); 
+            });
+
+            // JavaScript function that opens a navigation tab.
+            function openTab(evt, tabName) {
+                var i, tabcontent, tablinks;
+
+                // Get all elements with class="tabcontent" and hide them
+                tabcontent = document.getElementsByClassName("tabcontent");
+                for (i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].style.display = "none";
+                }      
+
+                // Get all elements with class="tablinks" and remove the class "active"
+                tablinks = document.getElementsByClassName("tablinks");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(" active", "");
+                }       
+
+                // Show the current tab, and add an "active" class to the button that opened the tab
+                document.getElementById(tabName).style.display = "block";
+                evt.currentTarget.className += " active";
+            }
+
+            // JavaScript function that displays the "close up" of a node in the network.
+            // It takes one argument (nodeID), which is the ID of the node to zoom in on.
+            function openZoom(nodeID) {
+                // Declare all variables. Note that I'm using "const" for variables that don't need reassignment.
+                const nodesData = newGraph.nodes.find(currentNode => currentNode.id === parseInt(nodeID));
+                const zoomContent = document.getElementById("zoom-image");
+
+                // Clear highlighting for old selected node, store newly selected node in the cookie, and
+                // highlight the newly selected node.
+                let oldSelectedCookie = document.cookie;
+                oldSelectedNode = oldSelectedCookie.split('=')[1];
+                document.getElementById(oldSelectedNode.toString()).setAttribute("style", "fill: white;");
+                document.cookie = "selectedNode=" + nodeID.toString();
+                document.getElementById(nodeID.toString()).setAttribute("style", "fill: #BEE3D1;");
+
+                // This helper function adds a text element to the SVG image.
+                const addText = (x, y, fontSize, fontWeight, fontFamily, text) => {
+                    const nodeText = document.createElementNS('http://www.w3.org/2000/svg','text');
+                    nodeText.setAttributeNS(null, "x", x);
+                    nodeText.setAttributeNS(null, "y", y);
+                    nodeText.setAttributeNS(null, "font-size", fontSize);
+                    nodeText.setAttributeNS(null, "font-weight", fontWeight);
+                    nodeText.setAttributeNS(null, "font-family", fontFamily);
+                    nodeText.innerHTML = text;
+                    zoomContent.appendChild(nodeText);
+                };
+                // This helper function adds a line element to the SVG image.
+                const addLine = (x1, y1, x2, y2) => {
+                    const nodeConnection = document.createElementNS('http://www.w3.org/2000/svg','line');
+                    nodeConnection.setAttributeNS(null, "stroke", "black");
+                    nodeConnection.setAttributeNS(null, "x1", x1);
+                    nodeConnection.setAttributeNS(null, "y1", y1);
+                    nodeConnection.setAttributeNS(null, "x2", x2);
+                    nodeConnection.setAttributeNS(null, "y2", y2);
+                    zoomContent.appendChild(nodeConnection)                    
+                };
+                // This helper function adds a circle to the SVG image.
+                const addCircle = (r, cx, cy) => {
+                    const nodeCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+                    nodeCircle.setAttributeNS(null, "stroke", "black");
+                    nodeCircle.setAttributeNS(null, "fill", "white");
+                    nodeCircle.setAttributeNS(null, "r", r);
+                    nodeCircle.setAttributeNS(null, "cx", cx);
+                    nodeCircle.setAttributeNS(null, "cy", cy);
+                    zoomContent.appendChild(nodeCircle)                    
+                };
+
+                // If it has existing elements, remove them (so we can add new elements).
+                zoomContent.querySelectorAll('*').forEach(element => element.remove());
+
+                // In the "Zoomed In" SVG image, include the headings.
+                addText(630, 30, 20, "bold", "sans-serif", "Close-up of Node");
+                addText(300, 60, 15, "normal", "Verdana, Geneva, Tahoma, sans-serif", "Displays information about the node highlighted (in green) to the left. W: indicates the weight of the connection.");
+
+                // Add a circle for the selected node to the zoomContent SVG image.
+                addCircle(200, 700, 850);
+
+                // Add text elements that show information about the node.
+                // Note that I'm using the backtick character (`) to indicate template literals, where something 
+                // like "${name}" within the backticks is a placeholder that gets replaced with the value of the 
+                // variable "name" when the string is evaluated.
+                addText(610, 815, 15, "normal", "serif", "Layer:");
+                addText(690, 815, 15, "normal", "serif", `${nodesData.layer}`);
+                addText(610, 865, 15, "normal", "serif", "Node:");
+                addText(690, 865, 15, "normal", "serif", `${nodesData.node}`);
+                addText(610, 915, 15, "normal", "serif", "Bias:");
+                addText(690, 915, 15, "normal", "serif", `${nodesData.bias}`);
+
+                // Note that I'm hardcoding the fact that there's one input, one hidden, and one output layer.
+                // TODO: Change this to accommodate different network architectures.
+                // TODO: All positions are hardcoded. Programatically determine x and y coordinates.
+                // If the selected node is in the Input Layer...
+                if (nodesData.layer == 0) {
+                    var nodeCounter = 0;                   
+                    var y_counter = 120;
+                    addText(665, 110, 15, "bold", "sans-serif", "Input Layer");
+                    addText(1050, 110, 15, "bold", "sans-serif", "Hidden Layer");
+                    addText(50, 860, 15, "normal", "serif", "Input to Network");
+                    addLine(165, 857, 500, 857);
+                    // Get every node whose source is equal to the current node ID, and write an entry for them.
+                    newGraph.connections.forEach(function (arrayItem) {
+                        if (arrayItem.source == nodeID) {
+                            y_counter = y_counter + 25;
+                            nodeCounter = nodeCounter + 1;
+                            addCircle(10, 1100, y_counter - 7);
+                            addText(1095, y_counter - 3, 12, "normal", "serif", nodeCounter);
+                            addText(1125, y_counter, 15, "normal", "serif", `W: ${arrayItem.weight}`);
+                            addLine(900, 857, 1090, y_counter - 5);
+                        }
+                    })
+
+                // If the selected node is in the Hidden Layer...
+                } else if (nodesData.layer == 1) {
+                    var nodeCounter = 0;                   
+                    var y_counter = 120;
+                    addText(150, 110, 15, "bold", "sans-serif", "Input Layer");
+                    addText(665, 110, 15, "bold", "sans-serif", "Hidden Layer");
+                    addText(1050, 110, 15, "bold", "sans-serif", "Output Layer");
+                    newGraph.connections.forEach(function (arrayItem) {
+                        if (arrayItem.target == nodeID) {
+                            y_counter = y_counter + 25;
+                            nodeCounter = nodeCounter + 1;
+                            addCircle(10, 100, y_counter - 7);
+                            addText(95, y_counter - 3, 12, "normal", "serif", nodeCounter);
+                            addText(125, y_counter, 15, "normal", "serif", `W: ${arrayItem.weight}`);
+                            addLine(325, y_counter - 5, 500, 857);
+                        }
+                    })
+                    var nodeCounter = 0;                   
+                    var y_counter = 732;
+                    newGraph.connections.forEach(function (arrayItem) {
+                        if (arrayItem.source == nodeID) {
+                            y_counter = y_counter + 25;
+                            nodeCounter = nodeCounter + 1;
+                            addCircle(10, 1100, y_counter - 7);
+                            addText(1095, y_counter - 3, 12, "normal", "serif", nodeCounter);
+                            addText(1125, y_counter, 15, "normal", "serif", `W: ${arrayItem.weight}`);
+                            addLine(900, 857, 1090, y_counter - 5);
+                        }
+                    })
+
+                // If the selected node is in the Output Layer...    
+                } else {
+                    var nodeCounter = 0;                   
+                    var y_counter = 120;
+                    addText(50, 110, 15, "bold", "sans-serif", "Hidden Layer");
+                    addText(665, 110, 15, "bold", "sans-serif", "Output Layer");
+                    // Get every node whose source is equal to the current node ID, and write an entry for them.
+                    newGraph.connections.forEach(function (arrayItem) {
+                        if (arrayItem.target == nodeID) {
+                            y_counter = y_counter + 25;
+                            nodeCounter = nodeCounter + 1;
+                            addCircle(10, 100, y_counter - 7);
+                            addText(95, y_counter - 3, 12, "normal", "serif", nodeCounter);
+                            addText(125, y_counter, 15, "normal", "serif", `W: ${arrayItem.weight}`);
+                            addLine(325, y_counter - 5, 500, 857);
+                        }
+                    })
+                    addText(1100, 860, 15, "normal", "serif", "Output from Network");
+                    addLine(900, 857, 1090, 857);                    
+                }
+
+                // In the "Zoomed In" SVG image, set the height and width of the SVG to those of the bounding  
+                // box (so we cansee all nodes).
+                svg_container = document.getElementById("zoom-image");
+                div_container = document.getElementById("neural-zoom");
+                bbox = svg_container.getBBox();
+                svg_container.setAttribute("width", bbox.x + bbox.width + bbox.x);
+                svg_container.setAttribute("height", bbox.y + bbox.height + bbox.y);
+            }
+        </script>
+    </head>
+        
+    <body>
+        <script type="text/javascript">
+            {% block main %}{% endblock %}
+        </script>
+
+        <!-- Tab links -->
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'Training')" id="defaultOpen">Training Explorer</button>
+            <button class="tablinks" onclick="openTab(event, 'Validation')">Validation Explorer</button>
+            <button class="tablinks" onclick="openTab(event, 'AccuracyLoss')">Accuracy & Loss</button>
+            <button class="tablinks" onclick="openTab(event, 'About')">About this Neural Network</button>
+        </div>
+
+        <!-- Tab content -->
+        <div id="Training" class="tabcontent">
+            <div class="neural-nav">
+                <p>Use the buttons below to step through the training epochs. As you step through the epochs, the network's weights and biases will update.</p>
+                <p>
+                    <a href="/first"><button>⏮️ First</button></a>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <a href="/previous"><button>⬅️ Previous</button></a>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <b>Epoch:</b> <span id="iteration_num"></span> of <span id="num_iterations"></span>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <a href="/next"><button>Next ➡️</button></a>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <a href="/last"><button>Last ⏭️</button></a>
+                </p>
+            </div>
+            <div class="neural-body">
+                <div class="neural-whole">
+                    <svg id="network-image"></svg>
+                </div>
+                <div class="neural-zoom">
+                    <svg id="zoom-image"></svg>
+                </div>
+            </div>    
+        </div>
+        
+        <div id="Validation" class="tabcontent">
+            <div class="neural-nav">
+                <p>This graph shows the Confusion Matrix for the last Validation run. The X axis shows the value that the neural network predicted.
+                    <br />The Y axis shows the label from the training data (that is, what the actual value should be). You can see, for each 
+                    <br />prediction, what the label is. For the most part, the neural network does a good job of predicting the number.
+                    <br />However, there are some instances when it though a 4 was a 9, and vice versa. Below the Confusion Matrix, there is a 
+                    <br />table showing all of the incorrect predictions for the Validation run.
+                </p>
+            </div>
+            <div class="other-body">
+                <div class="graph-container">
+                    <p class="other-heading">Validation - Confusion Matrix</p>
+                    <img src="{{ url_for('static', filename='Confusion.png') }}">
+                </div>
+                <div class="table-container">
+                    <p class="other-heading">Validation - Incorrect Predictions</p>
+                    <!-- The following is a hack to put headers at the top of each column. When a table flows across multiple columns, the table
+                    headers do not get repeated at the top of each column. To get past this, I am creating a table that only has the table headings
+                    and putting that table immediately before the table with the content. This table has four sets ofheadings, one for each column.-->
+                    <div class="col-body">
+                        <div>
+                            <table>
+                                <thead><tr><th>Image</th> <th>Label</th> <th>Prediction</th></tr></thead>
+                                <thead><tr><th>Image</th> <th>Label</th> <th>Prediction</th></tr></thead>
+                                <thead><tr><th>Image</th> <th>Label</th> <th>Prediction</th></tr></thead>
+                                <thead><tr><th>Image</th> <th>Label</th> <th>Prediction</th></tr></thead>
+                                </table>
+                        </div>
+                    </div>
+                    <div class="col-body">
+                        <div id="badPredictions"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="AccuracyLoss" class="tabcontent">
+            <div class="neural-nav">
+                <p>These graphs shows the Accuracy and Loss for the Training and Validation phases. The Training and Validation lines should be close 
+                    <br />to one another. If they are not, it could be a sign of the neural network underftting or overfitting the training data.</p>
+                <p>The Accuracy represents the percentage of images that the neural network correctly predicts. The loss represents the sum of the 
+                    <br />"error" between the prediction and the label.</p>
+                </p>
+            </div>
+            <div class="other-body">
+                <div class="graph-container">
+                    <img src="{{ url_for('static', filename='Accuracy.png') }}">
+                </div>
+                <div class="graph-container">
+                    <img src="{{ url_for('static', filename='Loss.png') }}">
+                </div>
+            </div>
+        </div>
+
+        <div id="About" class="tabcontent">
+            <div class="neural-nav">
+                <p>This application allows you to explore a neural network [that was created by a different program]. It takes JSON data
+                    <br />that is stored in files created by that other program, and allows you to explore several aspects of the neural  
+                    <br />network. You can explore the nodes of the neural network, seeing the weights and biases. You can see the 
+                    <br />Confusion Matrix, showing how the neural network performed on the Validation data. You can also see all the 
+                    <br />instances where the Validation run got its prediction wrong. Finally, you can see the Accuracy and Loss graphs
+                    <br />for the Training and Validation runs. Here is some information about the neural network in question:
+                </p>
+                <table>
+                    <tr><td>Data:</td><td>MNIST Written Digits</td></tr>
+                    <tr><td>Layers:</td><td>3</td></tr>
+                    <tr><td>Input Nodes:</td><td>784</td></tr>
+                    <tr><td>Hidden Nodes:</td><td>180</td></tr>
+                    <tr><td>Output Nodes:</td><td>10</td></tr>
+                    <tr><td>Activation Function:</td><td><span id="activation_fn"></span></td></tr>
+                    <tr><td>Loss Function:</td><td><span id="loss_fn"></span></td></tr>
+                    <tr><td>Learning Rate:</td><td><span id="alpha_value"></span></td></tr>
+                </table>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            // Get the tab with the id="defaultOpen" and click on that tab to initially display it.
+            document.getElementById("defaultOpen").click();
+        </script>
+
+        <script type="text/javascript">
+            var nodeSize = 15;
+            var svg = d3.select("#network-image");
+
+            document.getElementById('iteration_num').innerHTML = parseInt(iteration_number) + 1;
+            document.getElementById('num_iterations').innerHTML = num_iterations;
+            //document.getElementById('direction').innerHTML = direction;
+            document.getElementById('alpha_value').innerHTML = alpha_value;
+            document.getElementById('activation_fn').innerHTML = activation_fn;
+            document.getElementById('loss_fn').innerHTML = loss_fn;
+
+            const entireContent = document.getElementById("network-image");
+
+            // This function creates a text element (that contains the node information) in the circle.
+            // We call this function below.
+            const nodeInfo = (x, y, fontSize, fontWeight, fontFamily, text) => {
+                const nodeText = document.createElementNS('http://www.w3.org/2000/svg','text');
+                nodeText.setAttributeNS(null, "x", x);
+                nodeText.setAttributeNS(null, "y", y);
+                nodeText.setAttributeNS(null, "font-size", fontSize);
+                nodeText.setAttributeNS(null, "font-weight", fontWeight);
+                nodeText.setAttributeNS(null, "font-family", fontFamily);
+                nodeText.innerHTML = text;
+                entireContent.appendChild(nodeText);
+            };
+
+            // In the "Entire Neural Network" SVG image, include headings.
+            // TODO: This hardcodes the headings. They should instead be programatically generated for each layer.
+            nodeInfo(200, 30, 20, "bold", "sans-serif", "Entire Neural Network");
+            nodeInfo(12, 60, 15, "normal", "Verdana, Geneva, Tahoma, sans-serif", "Click on a node to see a close-up of that node and it's connections to the right.");
+            nodeInfo(55, 110, 15, "bold", "sans-serif", "Input Layer");
+            nodeInfo(250, 110, 15, "bold", "sans-serif", "Hidden Layer");
+            nodeInfo(450, 110, 15, "bold", "sans-serif", "Output Layer");
+
+            // In the "Entire Neural Network" SVG image, draw the links between nodes.  I'm adding the connections first, 
+            // because I want the nodes to be written later so they sit on top of the connections. Otherwise, the connection 
+            // lines obscure the nodes.
+		    svg.selectAll(".link")
+		        .data(newGraph.connections)
+		        .enter()
+                .append("line")
+		        .attr("class", "link")
+                .attr("x1", function(d) { return ((newGraph.nodes.find(n => n.id === d.source)).layer * 200) + 100; })
+		        .attr("y1", function(d) { return ((newGraph.nodes.find(n => n.id === d.source)).node * 35) + 110; })
+		        .attr("x2", function(d) { return ((newGraph.nodes.find(n => n.id === d.target)).layer * 200) + 100; })
+		        .attr("y2", function(d) { return ((newGraph.nodes.find(n => n.id === d.target)).node * 35) + 110; })
+		        .style("stroke-width", function(d) { return Math.sqrt(d.weight); });
+
+            // In the "Entire Neural Network" SVG image, draw the circles for the nodes and add the labels. There is a 
+            // group (<g>) for each node, containing both the circle and text elements. We set the transform attribute on 
+            // the group to position them correctly. We also apply a click event listener to each group. We use CSS classes 
+            // for styling.
+            svg.selectAll("g.node-group")
+                .data(newGraph.nodes)
+                .enter()
+                .append("g")
+                .attr("class", "node-group")
+                .attr("transform", function(d) {
+                    return "translate(" + ((d.layer * 200) + 100) + "," + ((d.node * 35) + 110) + ")";
+                })
+                .on("click", function(d) {
+                    openZoom(d.id);
+                })
+                .each(function(d) {
+                    // Append circle
+                    d3.select(this).append("circle")
+                    .attr("id", d.id)
+                    .attr("class", "node-circle")
+                    .attr("r", nodeSize);
+
+                // Append text
+                d3.select(this).append("text")
+                    .attr("class", "node-text")
+                    .text(d.node)
+                    .attr("dy", 5)
+                    .attr("text-anchor", "middle");
+                });
+
+		    // In the "Entire Neural Network" SVG image, set the height and width of the SVG to those of the bounding box 
+            // (so we can see all nodes).
+            var svg_container = document.getElementById("network-image");
+            var div_container = document.getElementById("neural-whole");
+            var bbox = svg_container.getBBox();
+            svg_container.setAttribute("width", bbox.x + bbox.width + bbox.x);
+            svg_container.setAttribute("height", bbox.y + bbox.height + bbox.y);
+
+            // Check if the selectedNode cookie exists. If it does, open the "close up" area with the node indicated in 
+            // the cookie.
+            if (document.cookie.indexOf('selectedNode=') != -1) {
+                let oldSelectedCookie = document.cookie;
+                oldSelectedNode = oldSelectedCookie.split('=')[1];
+                openZoom(oldSelectedNode);
+            }
+        </script>
+    </body>
+</html>
